@@ -8,6 +8,10 @@
  * this stuff is worth it, you can buy me a beer in return
  * ----------------------------------------------------------------------------
  */
+/**
+ * francis.crossen@888holdings.com - added support for nested translations,
+ * changed preg_replace() to str_replace()
+ */
 
 namespace Aiken\i18next;
 
@@ -43,6 +47,17 @@ class i18next {
      */
     private static $_missingTranslation = array();
 
+    /**
+     * Used for nested tranlations to prevent infinite loops
+     * @var int
+     */
+    const DEFAULT_RECURSION_LIMIT = 10;
+
+    /**
+     * Overide the recursion limit
+     * @var int
+     */
+    private static $_recursionLimit;
 
     /**
      * Inits i18next static class
@@ -55,6 +70,7 @@ class i18next {
 
         self::$_language = $language;
         self::$_path = $path;
+        self::$_recursionLimit = self::DEFAULT_RECURSION_LIMIT;
 
         self::loadTranslation();
 
@@ -105,6 +121,15 @@ class i18next {
     }
 
     /**
+     * Override the recursion limit for nesting
+     * @param int
+     * @return void
+     */
+    public static function setNestingRecursionLimit($count) {
+        self::$_recursionLimit = (int)$count;
+    }
+
+    /**
      * Get translation for given key
      *
      * @param string $key Key for the translation
@@ -114,6 +139,28 @@ class i18next {
     public static function getTranslation($key, $variables = array()) {
 
         $return = self::_getKey($key, $variables);
+
+        // check for nested keys
+        static $recursionCount = 0;
+        if (strpos($return, '$t(') !== false && $recursionCount < self::$_recursionLimit) {
+            $recursionCount++;
+            /**
+             * Regular expression pattern /\$t\((.*)\)/Ug
+             * 
+             * Match $t(something) multiple times in a string. Note 'g' modifier is not needed with
+             * PHP preg_match_all()
+             */
+            $pattern = '/\\$t\\((.*)\\)/U';
+            $found = preg_match_all($pattern, $return, $matches);
+            if ($found) {
+                $replacements = $matches[0];
+                $keys = $matches[1];
+                $replacement_count = count($replacements);
+                for ($index=0; $index<$replacement_count; $index++) {
+                    $return = str_replace($replacements[$index], self::getTranslation($keys[$index], $variables), $return);
+                }
+            }
+        }
 
         // Log missing translation
         if (!$return && array_key_exists('lng', $variables))
@@ -145,8 +192,8 @@ class i18next {
         foreach ($variables as $variable => $value) {
 
             if (is_string($value) || is_numeric($value)) {
-                $return = preg_replace('/__' . $variable . '__/', $value, $return);
-                $return = preg_replace('/{{' . $variable . '}}/', $value, $return);
+                $return = str_replace('__' . $variable . '__', $value, $return);
+                $return = str_replace('{{' . $variable . '}}', $value, $return);
             }
 
         }
@@ -242,7 +289,6 @@ class i18next {
      * @return mixed Translated string or array if requested. False if translation doesn't exist
      */
     private static function _getKey($key, $variables = array()) {
-
         $return = false;
 
         if (array_key_exists('lng', $variables) && array_key_exists($variables['lng'], self::$_translation))
