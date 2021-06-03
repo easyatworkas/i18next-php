@@ -17,31 +17,31 @@ class i18next {
      * Path for the translation files
      * @var string Path
      */
-    private static $_path = null;
+    protected static $_path = null;
 
     /**
      * Primary language to use
      * @var string Code for the current language
      */
-    private static $_language = null;
+    protected static $_language = null;
 
     /**
      * Fallback language for translations not found in current language
      * @var string Fallback language
      */
-    private static $_fallbackLanguage = 'dev';
+    protected static $_fallbackLanguage = 'dev';
 
     /**
      * Array to store the translations
      * @var array Translations
      */
-    private static $_translation = array();
+    protected static $_translation = array();
 
     /**
      * Logs keys for missing translations
      * @var array Missing keys
      */
-    private static $_missingTranslation = array();
+    protected static $_missingTranslation = array();
 
 
     /**
